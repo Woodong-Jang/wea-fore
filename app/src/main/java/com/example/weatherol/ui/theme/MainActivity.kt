@@ -20,7 +20,7 @@ class MainActivity : ComponentActivity() {
             WeatherolTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     Greeting(
-                        name = "cnm!!",
+                        name = "cnm!",
                         modifier = Modifier.padding(innerPadding)
                     )
                 }
