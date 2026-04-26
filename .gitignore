@@ -13,3 +13,37 @@
 .externalNativeBuild
 .cxx
 local.properties
+*.iml
+.gradle
+/local.properties
+/.idea/caches
+/.idea/libraries
+/.idea/modules.xml
+/.idea/workspace.xml
+/.idea/navEditor.xml
+/.idea/assetWizardSettings.xml
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+
+# 新增的补充内容
+# Android 项目通用 .gitignore
+build/
+captures/
+output.json
+*.apk
+*.dex
+*.class
+
+# Android Studio 配置文件（必须忽略，不然会和队友冲突）
+.idea/
+*.iml
+.gradle/
+local.properties
+
+# 系统垃圾文件
+.DS_Store
+Thumbs.db
