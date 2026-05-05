@@ -1,5 +1,5 @@
 package com.example.weatherol.data.common
-
+//存全局常量
 import android.Manifest
 
 object AppConstants {

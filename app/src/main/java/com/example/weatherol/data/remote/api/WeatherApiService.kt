@@ -6,9 +6,9 @@ import retrofit2.http.Query
 
 interface WeatherApiService {
 
-    // 👇 这是【完整天气接口】包含：当前 + 小时预报 + 7天预报
+    // 完整天气接口 包含：当前+小时预报+7天预报
     @GET("v1/forecast")
-    suspend fun getWeather(
+    suspend fun getWeather(//处理异步通信
         @Query("latitude") latitude: Double,
         @Query("longitude") longitude: Double,
         @Query("current") currentFields: String = "temperature_2m,weather_code,relative_humidity_2m",
@@ -17,7 +17,7 @@ interface WeatherApiService {
         @Query("timezone") timezone: String = "auto"
     ): WeatherResponse
 
-    // 城市搜索接口（不变）
+    // 城市搜索接口
     @GET("https://geocoding-api.open-meteo.com/v1/search")
     suspend fun geocodeCity(
         @Query("name") cityName: String,
@@ -27,11 +27,12 @@ interface WeatherApiService {
     ): GeocodingResponse
 }
 
-// 城市搜索响应（不变）
+// 城市搜索响应
+//Gson自动解析用的数据类
 data class GeocodingResponse(
     val results: List<GeocodingResult>?
 )
-
+//对应JSON结构
 data class GeocodingResult(
     val name: String,
     val latitude: Double,
