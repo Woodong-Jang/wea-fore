@@ -36,9 +36,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             WeatherolTheme {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                ) {
+                Surface(modifier = Modifier.fillMaxSize()) {
                     MainScreen()
                 }
             }
@@ -48,69 +46,47 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun MainScreen() {
-    val navItems = listOf(
+    val items = listOf(
         NavItem("首页", Icons.Default.Home),
         NavItem("预报", Icons.Default.LocationOn),
         NavItem("城市", Icons.Default.Add),
         NavItem("设置", Icons.Default.Settings)
     )
-
-    var selectedIndex by remember { mutableIntStateOf(0) }
-
-    // ======================
-    // 全局状态：选中的城市经纬度
-    // ======================
-    var selectedLat by remember { mutableStateOf(39.9042) }
-    var selectedLon by remember { mutableStateOf(116.4074) }
+    var selected by remember { mutableIntStateOf(0) }
+    var lat by remember { mutableStateOf(39.9042) }
+    var lon by remember { mutableStateOf(116.4074) }
 
     Scaffold(
         bottomBar = {
             NavigationBar {
-                navItems.forEachIndexed { index, item ->
+                items.forEachIndexed { i, it ->
                     NavigationBarItem(
-                        selected = selectedIndex == index,
-                        onClick = { selectedIndex = index },
-                        icon = {
-                            Icon(item.icon, contentDescription = item.label)
-                        },
-                        label = {
-                            Text(item.label)
-                        }
+                        selected = selected == i,
+                        onClick = { selected = i },
+                        icon = { Icon(it.icon, it.label) },
+                        label = { Text(it.label) }
                     )
                 }
             }
         }
-    ) { innerPadding ->
+    ) { pad ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
+                .padding(pad)
         ) {
-            when (selectedIndex) {
-                // 首页：传入选中的城市经纬度
-                0 -> HomeScreen(
-                    latitude = selectedLat,
-                    longitude = selectedLon
-                )
-
+            when (selected) {
+                0 -> HomeScreen(lat, lon)
                 1 -> ForecastScreen()
-
-                // 城市页面：传入回调，选中后更新全局坐标
-                2 -> CityScreen(
-                    onCitySelected = { cityName, lat, lon ->
-                        selectedLat = lat
-                        selectedLon = lon
-                        selectedIndex = 0 // 选完自动跳回首页
-                    }
-                )
-
+                2 -> CityScreen { _, l, lo ->
+                    lat = l
+                    lon = lo
+                    selected = 0
+                }
                 3 -> SettingsScreen()
             }
         }
     }
 }
 
-data class NavItem(
-    val label: String,
-    val icon: ImageVector
-)
+data class NavItem(val label: String, val icon: ImageVector)

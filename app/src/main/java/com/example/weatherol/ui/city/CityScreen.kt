@@ -30,12 +30,7 @@ import com.example.weatherol.data.remote.model.CityGeo
 import com.example.weatherol.data.repository.WeatherRepository
 import kotlinx.coroutines.launch
 
-// ======================
-// 这里只保留真正需要的结构
-// ======================
-enum class WeatherType {
-    SUNNY, CLOUDY, RAINY, SNOWY
-}
+enum class WeatherType { SUNNY, CLOUDY, RAINY, SNOWY }
 
 data class LocalCity(
     val id: Int,
@@ -44,17 +39,17 @@ data class LocalCity(
     val longitude: Double
 )
 
-// ======================
-// 增加回调：把选中城市传回首页
-// ======================
 @Composable
 fun CityScreen(
-    onCitySelected: (String, Double, Double) -> Unit // 👈 核心：给首页的接口
+    onCitySelected: (String, Double, Double) -> Unit
 ) {
-    val repository = remember { WeatherRepository() }
-    val coroutine = rememberCoroutineScope()
+    val repo = remember { WeatherRepository() }
+    val scope = rememberCoroutineScope()
 
-    // 本地保存已添加城市（带经纬度）
+    var searchText by remember { mutableStateOf("") }
+    var isLoading by remember { mutableStateOf(false) }
+    var errorMsg by remember { mutableStateOf("") }
+
     val cityList = remember {
         mutableStateListOf(
             LocalCity(1, "北京", 39.9042, 116.4074),
@@ -73,11 +68,6 @@ fun CityScreen(
         )
     }
 
-    var searchText by remember { mutableStateOf("") }
-    var isLoading by remember { mutableStateOf(false) }
-    var errorMsg by remember { mutableStateOf("") }
-
-    // 过滤搜索
     val filteredList = remember(searchText, cityList) {
         if (searchText.isBlank()) cityList
         else cityList.filter { it.name.contains(searchText, ignoreCase = true) }
@@ -87,7 +77,8 @@ fun CityScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Brush.verticalGradient(listOf(Color(0xFFF0F9FF), Color(0xFFE0F2FE))))
-            .padding(20.dp)
+            .padding(20.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
             "城市管理",
@@ -98,7 +89,6 @@ fun CityScreen(
 
         Spacer(Modifier.height(16.dp))
 
-        // 搜索框
         OutlinedTextField(
             value = searchText,
             onValueChange = { searchText = it },
@@ -111,32 +101,30 @@ fun CityScreen(
 
         Spacer(Modifier.height(16.dp))
 
-        // 添加网络搜索到的城市
         Button(
             onClick = {
                 if (searchText.isNotBlank()) {
-                    coroutine.launch {
+                    scope.launch {
                         isLoading = true
-                        val result = repository.getCityGeoByName(searchText)
+                        val result = repo.getCityGeoByName(searchText)
                         isLoading = false
-
                         when (result) {
                             is DataResult.Success -> {
                                 val geo = result.data
-                                val exists = cityList.any { it.name == geo.cityName }
-                                if (!exists) {
-                                    val newCity = LocalCity(
-                                        id = cityList.size + 1,
-                                        name = geo.cityName,
-                                        latitude = geo.latitude,
-                                        longitude = geo.longitude
+                                if (!cityList.any { it.name == geo.cityName }) {
+                                    cityList.add(
+                                        LocalCity(
+                                            id = cityList.size + 1,
+                                            name = geo.cityName,
+                                            latitude = geo.latitude,
+                                            longitude = geo.longitude
+                                        )
                                     )
-                                    cityList.add(newCity)
-                                    errorMsg = ""
                                 }
+                                errorMsg = ""
                             }
                             is DataResult.Error -> {
-                                errorMsg = result.message ?: "未知错误"
+                                errorMsg = result.message ?: "添加失败"
                             }
                             else -> Unit
                         }
@@ -181,29 +169,34 @@ fun CityScreen(
 
         Spacer(Modifier.height(12.dp))
 
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        LazyColumn(
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            modifier = Modifier.fillMaxSize()
+        ) {
             items(filteredList, key = { it.id }) { city ->
                 AnimatedVisibility(visible = true, enter = fadeIn(), exit = fadeOut()) {
-                    WeatherCityCard(city) {
-                        cityList.remove(city)
-                    }
+                    WeatherCityCard(
+                        city = city,
+                        onDelete = { cityList.remove(city) },
+                        onCitySelected = onCitySelected
+                    )
                 }
             }
         }
     }
 }
 
-// ======================
-// 点击卡片 → 回调经纬度给首页
-// ======================
 @Composable
-fun WeatherCityCard(city: LocalCity, onDelete: () -> Unit) {
+fun WeatherCityCard(
+    city: LocalCity,
+    onDelete: () -> Unit,
+    onCitySelected: (String, Double, Double) -> Unit
+) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(24.dp))
             .clickable {
-                // 👈 关键：点击就把城市信息传给首页
                 onCitySelected(city.name, city.latitude, city.longitude)
             },
         elevation = CardDefaults.cardElevation(6.dp),
@@ -254,8 +247,6 @@ fun WeatherCityCard(city: LocalCity, onDelete: () -> Unit) {
         }
     }
 }
-
-fun onCitySelected(name: String, latitude: Double, longitude: Double) {}
 
 @Composable
 fun WeatherIcon(type: WeatherType) {
