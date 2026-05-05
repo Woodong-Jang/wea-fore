@@ -1,5 +1,6 @@
 package com.example.weatherol.ui.forecast
 
+import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -10,23 +11,28 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Divider
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.weatherol.data.common.DataResult
+import com.example.weatherol.data.remote.model.WeatherResponse
+import com.example.weatherol.data.repository.WeatherRepository
 
-// 模拟数据类
+// 数据类
 data class HourlyForecast(
     val time: String,
     val temp: String,
-    val iconRes: Int // 示例：R.drawable.ic_sunny
+    val iconRes: Int
 )
 
 data class DailyForecast(
@@ -38,79 +44,91 @@ data class DailyForecast(
 )
 
 @Composable
-fun ForecastScreen() {
-    // 模拟24小时预报数据
-    val hourlyList = listOf(
-        HourlyForecast("现在", "26°", android.R.drawable.ic_menu_compass),
-        HourlyForecast("14:00", "27°", android.R.drawable.ic_menu_compass),
-        HourlyForecast("15:00", "28°", android.R.drawable.ic_menu_compass),
-        HourlyForecast("16:00", "27°", android.R.drawable.ic_menu_compass),
-        HourlyForecast("17:00", "25°", android.R.drawable.ic_menu_compass),
-        HourlyForecast("18:00", "23°", android.R.drawable.ic_menu_compass),
-        HourlyForecast("19:00", "22°", android.R.drawable.ic_menu_compass),
-        HourlyForecast("20:00", "21°", android.R.drawable.ic_menu_compass)
-    )
+fun ForecastScreen(
+    latitude: Double = 39.9042,
+    longitude: Double = 116.4074
+) {
+    val repo = remember { WeatherRepository() }
+    // 关键修复：去掉 by，改用 =，避免 property delegate 报错
+    val state = remember { mutableStateOf<DataResult<WeatherResponse>?>(null) }
 
-    // 模拟7天预报数据
-    val dailyList = listOf(
-        DailyForecast("今天", "28°", "22°", android.R.drawable.ic_menu_compass, "晴"),
-        DailyForecast("周二", "27°", "21°", android.R.drawable.ic_menu_compass, "多云"),
-        DailyForecast("周三", "25°", "20°", android.R.drawable.ic_menu_compass, "小雨"),
-        DailyForecast("周四", "24°", "19°", android.R.drawable.ic_menu_compass, "阴"),
-        DailyForecast("周五", "26°", "20°", android.R.drawable.ic_menu_compass, "晴"),
-        DailyForecast("周六", "27°", "21°", android.R.drawable.ic_menu_compass, "晴转多云"),
-        DailyForecast("周日", "28°", "22°", android.R.drawable.ic_menu_compass, "晴")
-    )
+    LaunchedEffect(latitude, longitude) {
+        Log.d("WeatherLog", "Forecast 开始请求")
+        val result = repo.fetchWeather(latitude, longitude)
+        state.value = result
+        Log.d("WeatherLog", "Forecast 请求完成：${state.value}")
+    }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF0F4F8)) // 和首页风格统一的浅背景色
+            .background(Color(0xFFF0F9FF))
             .verticalScroll(rememberScrollState())
             .padding(16.dp)
     ) {
-        // 标题
         Text(
             text = "未来预报",
-            fontSize = 20.sp,
+            fontSize = 24.sp,
             fontWeight = FontWeight.Bold,
-            color = Color(0xFF1A202C),
-            modifier = Modifier.padding(bottom = 16.dp)
+            color = Color(0xFF1A202C)
         )
 
-        // 24小时预报模块（横向列表）
-        HourlyForecastSection(hourlyList)
+        Spacer(modifier = Modifier.height(16.dp))
 
-        Spacer(modifier = Modifier.height(24.dp))
+        when (val currentState = state.value) {
+            is DataResult.Success -> {
+                val response = currentState.data
+                val hourly = response.hourly
+                val daily = response.daily
 
-        // 7天预报模块（纵向列表）
-        DailyForecastSection(dailyList)
-    }
-}
+                val hourlyItems = mutableListOf<HourlyForecast>()
+                repeat(8) { i ->
+                    val temp = hourly?.temperature2m?.getOrNull(i) ?: 0.0
+                    val time = hourly?.time?.getOrNull(i)?.takeLast(5) ?: "$i:00"
+                    hourlyItems.add(
+                        HourlyForecast(
+                            time = time,
+                            temp = "${temp.toInt()}°",
+                            iconRes = android.R.drawable.ic_menu_compass
+                        )
+                    )
+                }
 
-// 24小时预报：横向列表
-@Composable
-fun HourlyForecastSection(hourlyList: List<HourlyForecast>) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(4.dp)
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = "24小时预报",
-                fontSize = 16.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = Color(0xFF2D3748),
-                modifier = Modifier.padding(bottom = 12.dp)
-            )
+                val dailyItems = mutableListOf<DailyForecast>()
+                val dayNames = listOf("今天", "周二", "周三", "周四", "周五", "周六", "周日")
+                repeat(7) { i ->
+                    val max = daily?.temperature2mMax?.getOrNull(i) ?: 0.0
+                    val min = daily?.temperature2mMin?.getOrNull(i) ?: 0.0
+                    dailyItems.add(
+                        DailyForecast(
+                            day = dayNames[i],
+                            highTemp = "${max.toInt()}°",
+                            lowTemp = "${min.toInt()}°",
+                            iconRes = android.R.drawable.ic_menu_compass,
+                            weatherDesc = "晴"
+                        )
+                    )
+                }
 
-            LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                items(hourlyList) { forecast ->
-                    HourlyForecastItem(forecast)
+                HourlyForecastSection(hourlyItems)
+                Spacer(Modifier.height(20.dp))
+                DailyForecastSection(dailyItems)
+            }
+
+            is DataResult.Error -> {
+                Text(
+                    text = "加载失败：${currentState.message}",
+                    color = Color.Red,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+
+            else -> {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
                 }
             }
         }
@@ -118,60 +136,53 @@ fun HourlyForecastSection(hourlyList: List<HourlyForecast>) {
 }
 
 @Composable
-fun HourlyForecastItem(forecast: HourlyForecast) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.padding(vertical = 8.dp)
+fun HourlyForecastSection(hourlyList: List<HourlyForecast>) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
-        Text(
-            text = forecast.time,
-            fontSize = 14.sp,
-            color = Color(0xFF718096)
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Image(
-            painter = painterResource(id = forecast.iconRes),
-            contentDescription = "天气图标",
-            modifier = Modifier.size(32.dp)
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = forecast.temp,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Medium,
-            color = Color(0xFF2D3748)
-        )
+        Column(Modifier.padding(16.dp)) {
+            Text("24小时预报", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+            Spacer(Modifier.height(12.dp))
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                items(hourlyList) { HourlyForecastItem(it) }
+            }
+        }
     }
 }
 
-// 7天预报：纵向列表
+@Composable
+fun HourlyForecastItem(forecast: HourlyForecast) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(forecast.time, color = Color.Gray)
+        Spacer(Modifier.height(6.dp))
+        Image(
+            painter = painterResource(forecast.iconRes),
+            contentDescription = null,
+            modifier = Modifier.size(32.dp)
+        )
+        Spacer(Modifier.height(6.dp))
+        Text(forecast.temp, fontWeight = FontWeight.Medium)
+    }
+}
+
 @Composable
 fun DailyForecastSection(dailyList: List<DailyForecast>) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(Color.White),
         elevation = CardDefaults.cardElevation(4.dp)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = "7天预报",
-                fontSize = 16.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = Color(0xFF2D3748),
-                modifier = Modifier.padding(bottom = 12.dp)
-            )
-
-            dailyList.forEachIndexed { index, forecast ->
-                DailyForecastItem(forecast)
+        Column(Modifier.padding(16.dp)) {
+            Text("7天预报", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+            Spacer(Modifier.height(12.dp))
+            dailyList.forEachIndexed { index, item ->
+                DailyForecastItem(item)
                 if (index != dailyList.lastIndex) {
-                    Box(
-                        modifier = Modifier
-                            .padding(vertical = 8.dp)
-                            .fillMaxWidth()
-                            .height(1.dp) // 线条粗细
-                            .background(Color(0xFFE2E8F0)) // 线条颜色
-                    )
+                    Box(Modifier.fillMaxWidth().height(1.dp).background(Color(0xFFE2E8F0)))
                 }
             }
         }
@@ -180,57 +191,21 @@ fun DailyForecastSection(dailyList: List<DailyForecast>) {
 
 @Composable
 fun DailyForecastItem(forecast: DailyForecast) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        // 日期
-        Text(
-            text = forecast.day,
-            fontSize = 14.sp,
-            color = Color(0xFF2D3748),
-            modifier = Modifier.weight(1f)
-        )
-
-        // 天气图标 + 描述
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.weight(1f),
-            horizontalArrangement = Arrangement.Center
-        ) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(forecast.day, Modifier.weight(1f))
+        Row(Modifier.weight(1.5f), verticalAlignment = Alignment.CenterVertically) {
             Image(
-                painter = painterResource(id = forecast.iconRes),
-                contentDescription = "天气图标",
-                modifier = Modifier.size(24.dp)
+                painter = painterResource(forecast.iconRes),
+                contentDescription = null,
+                Modifier.size(24.dp)
             )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = forecast.weatherDesc,
-                fontSize = 14.sp,
-                color = Color(0xFF718096)
-            )
+            Spacer(Modifier.width(6.dp))
+            Text(forecast.weatherDesc, color = Color.Gray)
         }
-
-        // 温度范围
-        Row(
-            modifier = Modifier.weight(1f),
-            horizontalArrangement = Arrangement.End
-        ) {
-            Text(
-                text = forecast.highTemp,
-                fontSize = 14.sp,
-                color = Color(0xFF2D3748),
-                fontWeight = FontWeight.Medium
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = forecast.lowTemp,
-                fontSize = 14.sp,
-                color = Color(0xFF718096)
-            )
+        Row(Modifier.weight(1f), horizontalArrangement = Arrangement.End) {
+            Text(forecast.highTemp)
+            Spacer(Modifier.width(8.dp))
+            Text(forecast.lowTemp, color = Color.Gray)
         }
     }
 }

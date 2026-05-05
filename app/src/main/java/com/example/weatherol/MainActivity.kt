@@ -52,9 +52,11 @@ fun MainScreen() {
         NavItem("城市", Icons.Default.Add),
         NavItem("设置", Icons.Default.Settings)
     )
+
     var selected by remember { mutableIntStateOf(0) }
-    var lat by remember { mutableStateOf(39.9042) }
-    var lon by remember { mutableStateOf(116.4074) }
+    // 👇 这两行就是你缺失的城市状态变量
+    var selectedLat by remember { mutableStateOf(39.9042) }
+    var selectedLon by remember { mutableStateOf(116.4074) }
 
     Scaffold(
         bottomBar = {
@@ -70,18 +72,14 @@ fun MainScreen() {
             }
         }
     ) { pad ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(pad)
-        ) {
+        Box(Modifier.fillMaxSize().padding(pad)) {
             when (selected) {
-                0 -> HomeScreen(lat, lon)
-                1 -> ForecastScreen()
-                2 -> CityScreen { _, l, lo ->
-                    lat = l
-                    lon = lo
-                    selected = 0
+                0 -> HomeScreen(latitude = selectedLat, longitude = selectedLon)
+                1 -> ForecastScreen(latitude = selectedLat, longitude = selectedLon)
+                2 -> CityScreen { _, lat, lon ->
+                    selectedLat = lat
+                    selectedLon = lon
+                    selected = 0 // 选完城市自动切回首页
                 }
                 3 -> SettingsScreen()
             }
