@@ -58,7 +58,7 @@ fun HomeScreen(
         when (val state = weatherState) {
             is DataResult.Success -> {
                 val current = state.data.current
-                val temp = current?.temperature2m ?: 0.0
+                val temp = current?.temperature2m ?: 0.0//温度
 
                 //温度自动根据全局单位切换
                 val displayTemp = if (AppState.isCelsius.value) {
@@ -76,11 +76,11 @@ fun HomeScreen(
                 )
 
                 Spacer(Modifier.height(10.dp))
-                Text(getWeatherText(current?.weatherCode), fontSize = 24.sp, color = Color.Gray)
+                Text(getWeatherText(current?.weatherCode), fontSize = 24.sp, color = Color.Gray)//天气状态
                 Spacer(Modifier.height(40.dp))
 
                 Row(Modifier.fillMaxWidth(), Arrangement.SpaceEvenly) {
-                    WeatherInfoCard("湿度", "${current?.relativeHumidity2m}%")
+                    WeatherInfoCard("湿度", "${current?.relativeHumidity2m}%")//湿度
                     WeatherInfoCard("气压", "——")
                 }
                 Spacer(Modifier.height(20.dp))
