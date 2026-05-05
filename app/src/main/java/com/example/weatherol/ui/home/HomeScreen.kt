@@ -28,9 +28,9 @@ fun HomeScreen(
     latitude: Double = 39.9042,
     longitude: Double = 116.4074
 ) {
-    val weatherRepository = remember { WeatherRepository() }
-    var weatherState by remember { mutableStateOf<DataResult<WeatherResponse>?>(null) }
-
+    val weatherRepository = remember { WeatherRepository() }//创建仓库对象
+    var weatherState by remember { mutableStateOf<DataResult<WeatherResponse>?>(null) }//定义状态，接收返回结果
+    //调用仓库
     LaunchedEffect(latitude, longitude) {
         weatherState = weatherRepository.fetchWeather(latitude, longitude)
     }
@@ -60,14 +60,14 @@ fun HomeScreen(
                 val current = state.data.current
                 val temp = current?.temperature2m ?: 0.0
 
-                // ✅ 温度自动根据全局单位切换
+                //温度自动根据全局单位切换
                 val displayTemp = if (AppState.isCelsius.value) {
                     "${temp.toInt()} ℃"
                 } else {
                     "${(temp * 1.8 + 32).toInt()} ℉"
                 }
 
-                // ✅ 温度颜色自动跟随主题
+                //温度颜色自动跟随主题
                 Text(
                     displayTemp,
                     fontSize = 64.sp,
