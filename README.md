@@ -83,7 +83,3 @@ cd weatherol1
 - 增加 ViewModel + 状态管理（如 `StateFlow`）
 - 引入依赖注入（如 Hilt）提升可测试性与可维护性
 - 增加单元测试与 UI 测试
-
-## License
-
-可按需补充（例如 MIT License）。
