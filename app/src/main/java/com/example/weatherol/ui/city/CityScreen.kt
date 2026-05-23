@@ -3,7 +3,6 @@ package com.example.weatherol.ui.city
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -19,8 +18,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -33,9 +30,8 @@ enum class WeatherType {
 data class City(
     val id: Int,
     val name: String,
-    val temperature: String = "23℃",
     val weatherType: WeatherType = WeatherType.CLOUDY,
-    val weatherText: String = "多云"
+    val weatherText: String = ""
 )
 
 @Composable
@@ -65,68 +61,71 @@ fun CityScreen() {
         else cityList.filter { it.name.contains(searchText, ignoreCase = true) }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Brush.verticalGradient(listOf(Color(0xFFF0F9FF), Color(0xFFE0F2FE))))
-            .padding(20.dp)
-    ) {
-        Text(
-            "城市管理",
-            fontSize = 28.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color(0xFF0F172A)
-        )
-
-        Spacer(Modifier.height(16.dp))
-
-        OutlinedTextField(
-            value = searchText,
-            onValueChange = { searchText = it },
-            placeholder = { Text("搜索城市") },
-            leadingIcon = { Icon(Icons.Default.Search, null) },
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp))
-        )
-
-        Spacer(Modifier.height(16.dp))
-
-        Button(
-            onClick = {
-                val newCity = City(
-                    id = cityList.size + 1,
-                    name = "新城市${cityList.size + 1}"
-                )
-                cityList.add(newCity)
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp)
-                .clip(RoundedCornerShape(16.dp)),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7))
-        ) {
-            Icon(Icons.Default.Add, null)
-            Spacer(Modifier.width(8.dp))
-            Text("添加城市", fontSize = 16.sp)
+    Scaffold(
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = {
+                    val newCity = City(
+                        id = cityList.size + 1,
+                        name = "新城市${cityList.size + 1}"
+                    )
+                    cityList.add(newCity)
+                },
+                shape = CircleShape
+            ) {
+                Icon(Icons.Default.Add, null)
+            }
         }
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(horizontal = 20.dp, vertical = 16.dp)
+        ) {
+            Text(
+                "城市管理",
+                fontSize = 26.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground
+            )
 
-        Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(16.dp))
 
-        Text(
-            "已添加城市 (${filteredList.size})",
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Medium,
-            color = Color(0xFF334155)
-        )
+            OutlinedTextField(
+                value = searchText,
+                onValueChange = { searchText = it },
+                placeholder = { Text("搜索城市") },
+                leadingIcon = { Icon(Icons.Default.Search, null) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp)),
+                colors = TextFieldDefaults.colors()
+            )
 
-        Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(16.dp))
 
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            items(filteredList, key = { it.id }) { city ->
-                AnimatedVisibility(visible = true, enter = fadeIn(), exit = fadeOut()) {
-                    WeatherCityCard(city) {
-                        cityList.remove(city)
+            Text(
+                "已添加城市 (${filteredList.size})",
+                fontSize = 18.sp,
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
+            )
+
+            Spacer(Modifier.height(12.dp))
+
+            LazyColumn(
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.fillMaxSize()
+            ) {
+                items(filteredList, key = { it.id }) { city ->
+                    AnimatedVisibility(
+                        visible = true,
+                        enter = fadeIn(),
+                        exit = fadeOut()
+                    ) {
+                        CityCard(city) {
+                            cityList.remove(city)
+                        }
                     }
                 }
             }
@@ -135,78 +134,46 @@ fun CityScreen() {
 }
 
 @Composable
-fun WeatherCityCard(city: City, onDelete: () -> Unit) {
+fun CityCard(city: City, onDelete: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(24.dp))
             .clickable { },
-        elevation = CardDefaults.cardElevation(6.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainer
+        )
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(20.dp),
+                .padding(18.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            WeatherIcon(city.weatherType)
-            Spacer(Modifier.width(16.dp))
-
-            Column(Modifier.weight(1f)) {
-                Text(
-                    city.name,
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Color(0xFF1E293B),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    city.weatherText,
-                    fontSize = 14.sp,
-                    color = Color(0xFF64748B)
-                )
-            }
-
             Text(
-                city.temperature,
-                fontSize = 24.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF0284C7)
+                city.name,
+                fontSize = 19.sp,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
             )
 
-            Spacer(Modifier.width(8.dp))
+            Text(
+                city.weatherText,
+                fontSize = 15.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Spacer(Modifier.width(12.dp))
 
             IconButton(
-                onClick = onDelete,
-                modifier = Modifier
-                    .size(36.dp)
-                    .background(Color(0xFFFEE2E2), CircleShape)
+                onClick = onDelete
             ) {
-                Icon(Icons.Default.Delete, null, tint = Color(0xFFEF4444))
+                Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error)
             }
         }
-    }
-}
-
-@Composable
-fun WeatherIcon(type: WeatherType) {
-    val (bgColor, icon) = when (type) {
-        WeatherType.SUNNY -> Color(0xFFFFF9C3) to "☀️"
-        WeatherType.CLOUDY -> Color(0xFFE2E8F0) to "☁️"
-        WeatherType.RAINY -> Color(0xFFBAE6FD) to "🌧️"
-        WeatherType.SNOWY -> Color(0xFFF0F9FF) to "❄️"
-    }
-
-    Box(
-        modifier = Modifier
-            .size(60.dp)
-            .clip(CircleShape)
-            .background(bgColor),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(text = icon, fontSize = 28.sp)
     }
 }

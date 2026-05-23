@@ -13,6 +13,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.weatherol.AppState
 import com.example.weatherol.data.common.DataResult
 import com.example.weatherol.data.remote.model.WeatherResponse
 import com.example.weatherol.data.repository.WeatherRepository
@@ -25,8 +26,8 @@ private const val BEIJING_LON = 116.4074
 @Composable
 fun HomeScreen() {
     val weatherRepository = WeatherRepository()
-    val weatherState: DataResult<WeatherResponse>? by remember { mutableStateOf(null) }
     var weatherResult by remember { mutableStateOf<DataResult<WeatherResponse>?>(null) }
+    val isCelsius = AppState.isCelsius.value
 
     LaunchedEffect(Unit) {
         weatherResult = weatherRepository.fetchWeather(BEIJING_LAT, BEIJING_LON)
@@ -64,8 +65,16 @@ fun HomeScreen() {
                 val weather = (weatherResult as DataResult.Success<WeatherResponse>).data
                 val current = weather.current
 
+                val tempC = current?.temperature2m ?: 0.0
+                val tempF = tempC * 9 / 5 + 32
+                val displayTemp = if (isCelsius) {
+                    "%.1f°C".format(tempC)
+                } else {
+                    "%.1f°F".format(tempF)
+                }
+
                 Text(
-                    text = "${current?.temperature2m}°",
+                    text = displayTemp,
                     fontSize = 64.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF2980B9)
