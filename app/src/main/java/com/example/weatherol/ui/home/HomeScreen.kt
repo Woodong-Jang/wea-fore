@@ -89,20 +89,12 @@ fun HomeScreen() {
 
                 Spacer(Modifier.height(24.dp))
 
+                // 只保留真实的湿度
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceEvenly
+                    horizontalArrangement = Arrangement.Center
                 ) {
                     WeatherInfoCard(title = "湿度", value = "${current?.relativeHumidity2m}%")
-                    WeatherInfoCard(title = "气压", value = "1012 hPa")
-                }
-                Spacer(Modifier.height(20.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceEvenly
-                ) {
-                    WeatherInfoCard("风速", "——")
-                    WeatherInfoCard("能见度", "——")
                 }
             }
             is DataResult.Error -> {

@@ -41,7 +41,7 @@ class MainActivity : ComponentActivity() {
                     ) {
                         composable("home") { HomeScreen() }
                         composable("forecast") { ForecastScreen() }
-                        composable("city") { CityScreen(navController) }
+                        composable("city") { CityScreen() }
                         composable("settings") { SettingsScreen(navController) }
                     }
                 }
