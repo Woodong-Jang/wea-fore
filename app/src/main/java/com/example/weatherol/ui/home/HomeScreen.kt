@@ -22,7 +22,13 @@ import com.example.weatherol.data.repository.WeatherRepository
 import com.example.weatherol.utils.ActivityRecommendation
 import com.example.weatherol.utils.WeatherActivityHelper
 import kotlinx.coroutines.delay
+import kotlin.math.*
 import kotlin.random.Random
+
+// 天气效果类型
+enum class WeatherEffect {
+    AUTO, SUNNY, RAIN, SNOW, FOG
+}
 
 @Composable
 fun HomeScreen() {
@@ -38,9 +44,13 @@ fun HomeScreen() {
         weatherResult = weatherRepository.fetchWeather(lat, lon)
     }
 
+    var currentEffect by remember { mutableStateOf(WeatherEffect.AUTO) }
+
     Box(modifier = Modifier.fillMaxSize()) {
-        // 极简全屏粒子（保证动、保证全屏）
-        SimpleParticleBackground()
+        WeatherParticleBackground(
+            currentEffect = currentEffect,
+            weatherCode = (weatherResult as? DataResult.Success<WeatherResponse>)?.data?.current?.weatherCode ?: 0
+        )
 
         Column(
             modifier = Modifier
@@ -67,12 +77,16 @@ fun HomeScreen() {
                     val current = weather.current
 
                     val tempC = current?.temperature2m ?: 0.0
-                    val tempF = tempC * 9 / 5 + 32
-                    val displayTemp = if (isCelsius) {
-                        "%.1f°C".format(tempC)
-                    } else {
-                        "%.1f°F".format(tempF)
-                    }
+                    val humidity = (current?.relativeHumidity2m ?: 0.0).toDouble()
+
+                    val feelTempC = calculateApparentTemperature(tempC, humidity)
+                    val feelTempF = feelTempC * 9/5 + 32
+
+                    val displayTemp = if (isCelsius) "%.1f°C".format(tempC)
+                    else "%.1f°F".format(tempC * 9/5 + 32)
+
+                    val displayFeelTemp = if (isCelsius) "%.1f°C".format(feelTempC)
+                    else "%.1f°F".format(feelTempF)
 
                     Text(
                         text = displayTemp,
@@ -94,11 +108,15 @@ fun HomeScreen() {
 
                     Spacer(Modifier.height(24.dp))
 
+                    // 湿度 + 体感温度 并排显示
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.Center
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         WeatherInfoCard(title = "湿度", value = "${current?.relativeHumidity2m}%")
+                        Spacer(modifier = Modifier.width(16.dp))
+                        WeatherInfoCard(title = "体感温度", value = displayFeelTemp)
                     }
                 }
                 is DataResult.Error -> {
@@ -112,25 +130,65 @@ fun HomeScreen() {
                 }
             }
         }
+
+        FloatingActionButton(
+            onClick = {
+                currentEffect = when (currentEffect) {
+                    WeatherEffect.AUTO -> WeatherEffect.SUNNY
+                    WeatherEffect.SUNNY -> WeatherEffect.RAIN
+                    WeatherEffect.RAIN -> WeatherEffect.SNOW
+                    WeatherEffect.SNOW -> WeatherEffect.FOG
+                    WeatherEffect.FOG -> WeatherEffect.AUTO
+                }
+            },
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(20.dp),
+            containerColor = AppState.themeColor.value.copy(alpha = 0.9f)
+        ) {
+            val btnText = when (currentEffect) {
+                WeatherEffect.AUTO -> "自动"
+                WeatherEffect.SUNNY -> "晴"
+                WeatherEffect.RAIN -> "雨"
+                WeatherEffect.SNOW -> "雪"
+                WeatherEffect.FOG -> "雾"
+            }
+            Text(btnText, color = Color.White, fontWeight = FontWeight.Bold)
+        }
     }
 }
 
-// ———— 核心：极简、全屏、必动粒子 ————
+// 🔥 核心：气象标准 体感温度计算公式
+fun calculateApparentTemperature(tempC: Double, humidity: Double): Double {
+    val e = humidity * 6.105 * exp((17.27 * tempC) / (237.7 + tempC)) / 100
+    return tempC + 0.348 * e - 0.70 * 0 - 4.25
+}
+
 @Composable
-fun SimpleParticleBackground() {
-    // 粒子数据
+fun WeatherParticleBackground(
+    currentEffect: WeatherEffect,
+    weatherCode: Int
+) {
+    val effect = if (currentEffect == WeatherEffect.AUTO) {
+        when (weatherCode) {
+            0, 1 -> WeatherEffect.SUNNY
+            51, 53, 55, 61, 63, 65 -> WeatherEffect.RAIN
+            71, 73, 75 -> WeatherEffect.SNOW
+            45, 48 -> WeatherEffect.FOG
+            else -> WeatherEffect.SUNNY
+        }
+    } else {
+        currentEffect
+    }
+
     val particles = remember {
         List(80) {
             mutableStateOf(
-                Offset(
-                    x = Random.nextFloat() * 1000f,
-                    y = Random.nextFloat() * 2000f
-                ) to Random.nextFloat() * 2f + 1f // 速度
+                Offset(Random.nextFloat(), Random.nextFloat()) to Random.nextFloat()
             )
         }
     }
 
-    // 强制每16ms刷新一次（保证动画不停止）
     var tick by remember { mutableStateOf(0) }
     LaunchedEffect(Unit) {
         while (true) {
@@ -140,24 +198,69 @@ fun SimpleParticleBackground() {
     }
 
     Canvas(modifier = Modifier.fillMaxSize()) {
-        // 每次tick更新位置
-        particles.forEach { p ->
-            val (pos, speed) = p.value
-            p.value = pos.copy(y = pos.y + speed) to speed
-            // 超出屏幕顶部回到最上
-            if (pos.y > size.height) {
-                p.value = Offset(Random.nextFloat() * size.width, 0f) to speed
-            }
-        }
+        val w = size.width
+        val h = size.height
 
-        // 绘制所有粒子
-        particles.forEach { p ->
-            val (pos, _) = p.value
-            drawCircle(
-                color = AppState.themeColor.value.copy(alpha = 0.4f),
-                radius = 2.5f,
-                center = pos
-            )
+        particles.forEach { pState ->
+            val (pos, rnd) = pState.value
+            var x = pos.x * w
+            var y = pos.y * h
+
+            when (effect) {
+                WeatherEffect.SUNNY -> {
+                    x += sin((tick * 0.015f + rnd * 6.28f).toDouble()).toFloat() * 0.22f
+                    y += cos((tick * 0.012f + rnd * 6.28f).toDouble()).toFloat() * 0.22f
+
+                    if (x < 0) x = w
+                    if (x > w) x = 0f
+                    if (y < 0) y = h
+                    if (y > h) y = 0f
+
+                    drawCircle(
+                        color = Color(0xFFFFD700).copy(alpha = 0.4f),
+                        radius = 3f + rnd * 1f,
+                        center = Offset(x, y)
+                    )
+                }
+
+                WeatherEffect.RAIN -> {
+                    y += 7f + rnd * 2.5f
+                    x += 0.6f
+                    if (y > h) { y = -25f; x = Random.nextFloat() * w }
+                    drawLine(
+                        color = Color(0xFF2196F3).copy(alpha = 0.8f),
+                        start = Offset(x, y),
+                        end = Offset(x - 1.5f, y - 25f),
+                        strokeWidth = 2.2f
+                    )
+                }
+
+                WeatherEffect.SNOW -> {
+                    y += 1.2f + rnd * 0.6f
+                    x += sin(tick * 0.05f + rnd * 6.28).toFloat() * 1f
+                    if (y > h) { y = -8f; x = Random.nextFloat() * w }
+                    drawCircle(
+                        color = Color.White.copy(alpha = 0.9f),
+                        radius = 4.5f + rnd * 2f,
+                        center = Offset(x, y)
+                    )
+                }
+
+                WeatherEffect.FOG -> {
+                    x += sin(tick * 0.02f + rnd * 6.28).toFloat() * 0.6f
+                    y += 0.15f + rnd * 0.15f
+                    if (y > h) { y = -40f; x = Random.nextFloat() * w }
+                    drawCircle(
+                        color = Color(0xFFB0BEC5).copy(alpha = 0.4f),
+                        radius = 35f + rnd * 20f,
+                        center = Offset(x, y)
+                    )
+                }
+
+                else -> {}
+            }
+
+            pState.value = Offset(x / w, y / h) to rnd
         }
     }
 }
