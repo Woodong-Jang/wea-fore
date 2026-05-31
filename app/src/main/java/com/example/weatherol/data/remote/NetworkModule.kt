@@ -1,37 +1,17 @@
 package com.example.weatherol.data.remote
 
-import com.example.weatherol.data.common.AppConstants
 import com.example.weatherol.data.remote.api.WeatherApiService
-import okhttp3.OkHttpClient
-import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
-import java.util.concurrent.TimeUnit
 
 object NetworkModule {
-
-    private val loggingInterceptor = HttpLoggingInterceptor().apply {
-        level = HttpLoggingInterceptor.Level.BASIC
-    }
-
-    private val okHttpClient: OkHttpClient by lazy {
-        OkHttpClient.Builder()
-            .connectTimeout(AppConstants.Network.CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-            .readTimeout(AppConstants.Network.READ_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-            .writeTimeout(AppConstants.Network.WRITE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-            .addInterceptor(loggingInterceptor)
-            .build()
-    }
-
-    private val retrofit: Retrofit by lazy {
-        Retrofit.Builder()
-            .baseUrl(AppConstants.Network.WEATHER_BASE_URL)
-            .client(okHttpClient)
-            .addConverterFactory(GsonConverterFactory.create())
-            .build()
-    }
+    private const val BASE_URL = "https://api.open-meteo.com/"// 1. 存服务器地址
 
     val weatherApiService: WeatherApiService by lazy {
-        retrofit.create(WeatherApiService::class.java)
+        Retrofit.Builder()// 2. 用 Retrofit 配置好 JSON 解析、地址等
+            .baseUrl(BASE_URL)// 3. 设置 API 的基础地址
+            .addConverterFactory(GsonConverterFactory.create())// 4.配置解析器,告诉Retrofit，服务器返回的JSON，我要用Gson自动帮我转成 Kotlin对象
+            .build()//生成一个 Retrofit 实例
+            .create(WeatherApiService::class.java)//Retrofit会根据WeatherApiService接口生成具体的实现代码。
     }
 }
